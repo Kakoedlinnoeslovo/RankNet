@@ -21,6 +21,8 @@ from keras import initializers
 from keras import optimizers
 from keras import losses
 from sklearn.metrics import mean_squared_error as mse
+import pandas as pd
+import time
 
 
 
@@ -90,7 +92,7 @@ def main():
 
     learning_rate = 0.01
     batch_size = 1000
-    epochs = 5
+    epochs = 1
 
     model_ = Network()
     X = X.reshape(X.shape[0], 17, 8, 1)
@@ -101,6 +103,33 @@ def main():
                      validation_data=(X[-100:], y[-100:]))
     y_pred = model_.model.predict(X)
     print(mse(y, y_pred))
+
+
+
+    X_test, y_test, Query_test = readDataset("data/testset.cvs", howlines=10000, isall=True)
+    X = np.array(X_test)  # .astype(np.float64)
+    X = X.reshape(X.shape[0], 17, 8, 1)
+    # y = abs(np.array(y_test) - np.array(y_test).mean()) / np.array(y_test).std()
+    # X = (X - X.mean()) / X.std()
+    # X = stats.zscore(X)
+    y_pred = model_.model.predict(X)
+
+    sample = pd.read_csv("data/sample.txt")
+
+    sorted_docsall = list()
+    for query in tqdm(sorted(set(Query_test))):
+        docs = np.array(list(sample[sample.QueryId == query].DocumentId))
+        # print(docs[:10])
+        # indexes = sample[sample.QueryId == query].index
+        indexes = np.array([i for i in range(len(sample[sample.QueryId == query].index))])
+        indexes_sorted = indexes[np.argsort(y_pred[indexes].ravel(), axis=0)]
+        docs_sorted = docs[indexes_sorted]
+        # print(docs_sorted[:10])
+        sorted_docsall.extend(docs_sorted)
+        # sample[sample.QueryId == query].DocumentId = docs_sorted
+
+    sample.DocumentId = sorted_docsall
+    sample.to_csv("data/my_sub_{}.txt".format(time.time()), index=False)
 
 if __name__ == "__main__":
     main()
